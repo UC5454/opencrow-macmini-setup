@@ -1,0 +1,20 @@
+# 機密情報（絶対にコミットしない）
+credentials/anthropic.env
+credentials/matrix.env
+credentials/gdrive-token/
+credentials/*.json
+credentials/*.key
+
+# ワークスペース
+workspace/
+sessions/
+
+# ログ
+logs/
+*.log
+
+# macOS
+.DS_Store
+
+# Docker
+docker-compose.override.yml

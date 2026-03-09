@@ -1,0 +1,20 @@
+model_list:
+  - model_name: claude-opus-4-6
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+general_settings:
+  # ← 必ず変更すること
+  master_key: "sk-litellm-CHANGE-THIS-TO-RANDOM-STRING"
+
+litellm_settings:
+  max_budget: 100       # 月額上限（USD）
+  budget_duration: 1mo
+  num_retries: 2
+  request_timeout: 300

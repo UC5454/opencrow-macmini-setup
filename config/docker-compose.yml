@@ -1,0 +1,106 @@
+version: "3.8"
+
+services:
+  # =============================================
+  # LiteLLM: APIプロキシ（唯一の外部接続点）
+  # - Anthropic APIキーはここだけに保管
+  # - OpenCrowはキーを知らない
+  # =============================================
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    container_name: opencrow-litellm
+    ports:
+      - "127.0.0.1:4000:4000"
+    networks:
+      - opencrow-internal
+      - opencrow-external
+    env_file:
+      - ../credentials/anthropic.env
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M
+
+  # =============================================
+  # Squid: ドメイン許可制プロキシ
+  # - allowlist.txt に載っているドメインのみ通過
+  # - それ以外は全て拒否（deny-by-default）
+  # =============================================
+  squid:
+    image: ubuntu/squid:latest
+    container_name: opencrow-squid
+    networks:
+      - opencrow-internal
+      - opencrow-external
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - ./allowlist.txt:/etc/squid/allowlist.txt:ro
+    restart: unless-stopped
+
+  # =============================================
+  # OpenCrow: AIエージェント本体
+  # - 外部ネットワークへの直接アクセス不可
+  # - LiteLLM + Squid 経由でのみ外部通信
+  # =============================================
+  opencrow:
+    image: node:22-alpine
+    container_name: opencrow-agent
+    networks:
+      - opencrow-internal
+    env_file:
+      - ../credentials/matrix.env
+    environment:
+      - OPENCROW_BACKEND=matrix
+      - OPENCROW_PI_PROVIDER=anthropic
+      - OPENCROW_PI_MODEL=claude-opus-4-6
+      - OPENCROW_PI_SESSION_DIR=/data/sessions
+      - OPENCROW_PI_WORKING_DIR=/workspace
+      - OPENCROW_PI_IDLE_TIMEOUT=60m
+      - ANTHROPIC_API_BASE=http://litellm:4000/v1
+      - HTTP_PROXY=http://squid:3128
+      - HTTPS_PROXY=http://squid:3128
+      - OPENCROW_SHOW_TOOL_CALLS=true
+      - OPENCROW_HEARTBEAT_INTERVAL=30m
+    volumes:
+      - ../workspace:/workspace
+      - ../sessions:/data/sessions
+      - ../skills:/skills:ro
+      - ./soul.md:/etc/opencrow/soul.md:ro
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=500M
+
+  # =============================================
+  # Google Drive MCP: 限定アクセス（オプション）
+  # - サービスアカウントで専用フォルダのみ
+  # =============================================
+  gdrive-mcp:
+    image: node:22-alpine
+    container_name: opencrow-gdrive
+    networks:
+      - opencrow-internal
+      - opencrow-external
+    volumes:
+      - ../credentials/gdrive-token:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/credentials.json
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M
+    profiles:
+      - gdrive  # docker compose --profile gdrive up で有効化
+
+networks:
+  opencrow-internal:
+    internal: true  # 外部アクセス不可
+  opencrow-external:
+    driver: bridge

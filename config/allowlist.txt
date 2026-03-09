@@ -1,0 +1,19 @@
+# OpenCrow 許可ドメイン
+# ここに載っていないドメインは全て拒否される
+
+# LLM API
+.anthropic.com
+
+# Google（Drive限定アクセス用）
+.googleapis.com
+.google.com
+.googleusercontent.com
+
+# 開発ツール
+.github.com
+.npmjs.org
+.pypi.org
+
+# === 以下は必要に応じて追加 ===
+# .slack.com
+# .notion.so
